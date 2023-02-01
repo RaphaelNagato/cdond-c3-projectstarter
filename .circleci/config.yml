@@ -214,7 +214,8 @@ jobs:
           name: Install dependencies
           command: |
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
-            source ~/.bashrc
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
             nvm install 13.8.0
       - run:
           name: Get backend url
@@ -250,8 +251,8 @@ jobs:
           name: Install dependencies
           command: |
             apk add --update ansible tar gzip curl bash
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
-            . ~/.nvm/nvm.sh
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
             nvm install 13.8.0
       - run:
           name: Deploy backend
