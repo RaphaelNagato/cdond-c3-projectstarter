@@ -6,32 +6,46 @@ commands:
     parameters:
       workflow_id:
         type: string
+        default: ${CIRCLE_WORKFLOW_ID:0:7}
     steps:
       - run:
           name: Destroy environments
           when: on_fail
           command: |
+            aws s3 rm s3://udapeople-<<parameters.workflow_id>> --recursive
             aws cloudformation delete-stack --stack-name udapeople-backend-<<parameters.workflow_id>>
             aws cloudformation delete-stack --stack-name udapeople-frontend-<<parameters.workflow_id>>
 
   revert-migrations:
-    description: Revert the last migration if successfully run in the current workflow.
+    description: Revert the last migration, if any were executed during the current workflow
     parameters:
-      # Add parameter here
+      workflow_id:
+        type: string
+        default: ${CIRCLE_WORKFLOW_ID:0:7}
     steps:
       - run:
           name: Revert migrations
-          # Add when this will run
+          when: on_fail
           command: |
-            # Curl command here to see if there was a successful migration associated with the workflow id, store result in SUCCESS variable
-            SUCCESS = 1
-            if(( $SUCCESS==1 )); 
+            SUCCESS=$(curl --insecure  https://kvdb.io/${KVDB_BUCKET}/migration_<<parameters.workflow_id>>)
+
+            # Logic for reverting the database state
+            if (( $SUCCESS == 1 ));
             then
-            #  cd ~/project/backend
-            #  npm install
-            #  Add revert code here. You can find this in the Getting Started section.
-              exit 1
+              cd ./backend
+              npm install
+              npm run migration:revert
             fi
+
+  install-aws-cli:
+    description: Install AWS CLI (Ubuntu)
+    steps:
+      - run:
+          name: install aws cli
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
 
 jobs:
   build-frontend:
@@ -159,14 +173,14 @@ jobs:
           root: ./
           paths:
             - .circleci/ansible/inventory.txt
-      - destroy-environment:
-          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+      - destroy-environment
 
   configure-infrastructure:
     docker:
-      - image: python:3.11.1-alpine3.16
+      - image: cimg/python:3.10
     steps:
       - checkout
+      - install-aws-cli
       - add_ssh_keys:
           fingerprints: ["0e:2b:89:da:b5:de:d5:fe:6b:1f:60:5f:85:70:c3:90"]
       - attach_workspace:
@@ -177,49 +191,49 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            apk add --update ansible tar gzip
+            python3 -m pip install --user ansible
       - run:
           name: Configure server
           command: |
             cd .circleci/ansible
             ansible-playbook -i inventory.txt configure-server.yml
-  #     # Here's where you will add some code to rollback on failure
+      - destroy-environment
+
   run-migrations:
     docker:
       - image: cimg/node:13.8.0
     steps:
       - checkout
+      - install aws-cli
       - run:
           name: Run migrations
           command: |
             cd backend
             npm install
             npm run migrations > migrations_dump.txt
+            cat migrations_dump.txt
       - run:
           name: Send migration results to kvdb.io
           command: |
             if grep -q "has been executed successfully." ./backend/migrations_dump.txt
             then
-                # If you are using kvdb.io, generate the bucket ID "9GE4jRtKznmVKRfvdBABBe" in your local terminal first
-                curl https://kvdb.io/9Ze1Ey9VHwNDCzaZpADx4W/migration_${CIRCLE_WORKFLOW_ID:0:7}  -d '1'
+                curl https://kvdb.io/${KVDB_BUCKET}/migration_${CIRCLE_WORKFLOW_ID:0:7}  -d '1'
+            else
+              echo "There is no migrations pending"
             fi
-      # Here's where you will add some code to rollback on failure
+      - revert-migrations
+      - destroy-environment
 
   deploy-frontend:
     docker:
       - image: cimg/node:13.8.0
     steps:
       - checkout
-      - run:
-          name: Install dependencies
-          command: |
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            sudo ./aws/install
+      - install-aws-cli
       - run:
           name: Get backend url
           command: |
-            export BACKEND_IP=$(aws ec2 describe-addresses --query Address[*].PublicIP --output text)
+            export BACKEND_IP=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
             export API_URL="http://${BACKEND_IP}:3030"
             echo "API_URL = ${API_URL}"
             echo API_URL="http://${BACKEND_IP}:3030" >> frontend/.env
@@ -232,13 +246,15 @@ jobs:
             npm run build
             tar -czvf artifact-"${CIRCLE_WORKFLOW_ID:0:7}".tar.gz dist
             aws s3 cp dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
-      # Here's where you will add some code to rollback on failure
+      - revert-migrations
+      - destroy-environment
 
   deploy-backend:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/python:3.10
     steps:
       - checkout
+      - install-aws-cli
       - add_ssh_keys:
           fingerprints: ["0e:2b:89:da:b5:de:d5:fe:6b:1f:60:5f:85:70:c3:90"]
       - attach_workspace:
@@ -249,9 +265,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            sudo apt-add-repository ppa:ansible/ansible
-            sudo apt -y update
-            sudo apt -y install ansible
+            python3 -m pip install --user ansible
             curl -fsSL https://deb.nodesource.com/setup_13.x | sudo -E bash -
             sudo apt install -y nodejs
       - run:
@@ -269,7 +283,8 @@ jobs:
             echo "Contents  of the inventory.txt file is -------"
             cat inventory.txt
             ansible-playbook -i inventory.txt deploy-backend.yml
-      # Here's where you will add some code to rollback on failure
+      - revert-migrations
+      - destroy-environment
 
   # smoke-test:
   #   docker:
