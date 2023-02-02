@@ -219,7 +219,7 @@ jobs:
       - run:
           name: Get backend url
           command: |
-            export BACKEND_IP=$(aws ec2 describe-addresses --query 'Address[*].PublicIP --output text')
+            export BACKEND_IP=$(aws ec2 describe-addresses --query Address[*].PublicIP --output text)
             export API_URL="http://${BACKEND_IP}:3030"
             echo "API_URL = ${API_URL}"
             echo API_URL="http://${BACKEND_IP}:3030" >> frontend/.env
@@ -236,7 +236,7 @@ jobs:
 
   deploy-backend:
     docker:
-      - image: cimg/node:13.8.0
+      - image: cimg/base:stable
     steps:
       - checkout
       - add_ssh_keys:
@@ -252,6 +252,8 @@ jobs:
             sudo apt-add-repository ppa:ansible/ansible
             sudo apt -y update
             sudo apt -y install ansible
+            curl -fsSL https://deb.nodesource.com/setup_13.x | sudo -E bash -
+            sudo apt install -y nodejs
       - run:
           name: Deploy backend
           command: |
