@@ -32,7 +32,7 @@ commands:
             # Logic for reverting the database state
             if (( $SUCCESS == 1 ))
             then
-              cd ./backend
+              cd backend
               npm install
               npm run migrations:revert
             fi
@@ -235,8 +235,8 @@ jobs:
       - run:
           name: Get backend url
           command: |
-            echo 'export BACKEND_IP=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)' >> "$BASH_ENV"
-            echo 'export API_URL="http://${BACKEND_IP}:3030"' >> "$BASH_ENV"
+            export BACKEND_IP=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
+            export API_URL="http://${BACKEND_IP}:3030"
             echo "API_URL = ${API_URL}"
             echo API_URL="http://${BACKEND_IP}:3030" >> frontend/.env
             cat frontend/.env
@@ -278,7 +278,6 @@ jobs:
       - run:
           name: Deploy backend
           command: |
-            pwd
             cd backend
             npm i
             npm run build
@@ -287,6 +286,11 @@ jobs:
             tar -C backend -czvf artifact.tar.gz .
             mkdir -p ~/project/.circleci/ansible/roles/deploy/files/
             mv artifact.tar.gz ~/project/.circleci/ansible/roles/deploy/files/artifact.tar.gz
+
+            export TYPEORM_MIGRATIONS_DIR=./migrations
+            export TYPEORM_ENTITIES=./modules/domain/**/*.entity{.ts,.js}
+            export TYPEORM_MIGRATIONS=./migrations/*.ts
+
             cd .circleci/ansible
             echo "Contents  of the inventory.txt file is -------"
             cat inventory.txt
@@ -312,6 +316,8 @@ jobs:
       - run:
           name: Backend Smoke Test
           command: |
+            export BACKEND_IP=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
+            export API_URL="http://${BACKEND_IP}:3030"
             # Fetch and prepare the BACKEND_IP env var
             if curl "${API_URL}/api/status" | grep "ok"
             then
