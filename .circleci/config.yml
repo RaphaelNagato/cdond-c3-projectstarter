@@ -196,7 +196,7 @@ jobs:
           name: Configure server
           command: |
             cd .circleci/ansible
-            ansible-playbook -i inventory.txt configure-server.yml
+            ansible-playbook -v -i inventory.txt configure-server.yml
       - destroy-environment
 
   run-migrations:
@@ -289,7 +289,8 @@ jobs:
             cd .circleci/ansible
             echo "Contents  of the inventory.txt file is -------"
             cat inventory.txt
-            ansible-playbook -i inventory.txt deploy-backend.yml
+            ansible-playbook -v -i inventory.txt deploy-backend.yml
+            cd
       - revert-migrations
       - destroy-environment
 
