@@ -182,7 +182,7 @@ jobs:
       - checkout
       - install-aws-cli
       - add_ssh_keys:
-          fingerprints: ["0e:2b:89:da:b5:de:d5:fe:6b:1f:60:5f:85:70:c3:90"]
+          fingerprints: ["49:29:9f:7a:39:78:5c:ec:97:49:98:38:31:ae:9b:4d"]
       - attach_workspace:
           at: ./
       - run:
@@ -212,6 +212,8 @@ jobs:
           command: |
             cd backend
             npm install
+            npm audit fix --force
+            npm audit fix --audit-level=critical --force
             npm run migrations > migrations_dump.txt
             echo "Show migrations"
             cat migrations_dump.txt
@@ -260,7 +262,7 @@ jobs:
       - checkout
       - install-aws-cli
       - add_ssh_keys:
-          fingerprints: ["0e:2b:89:da:b5:de:d5:fe:6b:1f:60:5f:85:70:c3:90"]
+          fingerprints: ["49:29:9f:7a:39:78:5c:ec:97:49:98:38:31:ae:9b:4d"]
       - attach_workspace:
           at: ./
       - run:
@@ -295,28 +297,40 @@ jobs:
       - revert-migrations
       - destroy-environment
 
-  # smoke-test:
-  #   docker:
-  #     # Lightweight Docker image
-  #   steps:
-  #     # Checkout code from git
-  #     - run:
-  #         name: Install dependencies
-  #         command: |
-  #           # your code here
-  #     - run:
-  #         name: Get backend url
-  #         command: |
-  #           # your code here
-  #     - run:
-  #         name: Backend smoke test.
-  #         command: |
-  #           # your code here
-  #     - run:
-  #         name: Frontend smoke test.
-  #         command: |
-  #           # your code here
-  #     # Here's where you will add some code to rollback on failure
+  smoke-test:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      # Checkout code from git
+      - run:
+          name: Install dependencies
+          command: |
+            # your code here
+      - run:
+          name: Backend Smoke Test
+          command: |
+            # Fetch and prepare the BACKEND_IP env var
+            export API_URL="http://${BACKEND_IP}:3030"
+            echo "${API_URL}"
+            if curl "${API_URL}/api/status" | grep "ok"
+            then
+                return 0
+            else
+                return 1
+            fi
+      - run:
+          name: Frontend smoke test.
+          command: |
+            URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com/#/employees"            
+            echo ${URL} 
+            if curl -s ${URL} | grep "Welcome"
+            then
+              return 1
+            else
+              return 1
+            fi
+      - revert-migrations
+      - destroy-environment
 
   # cloudfront-update:
   #   docker:
