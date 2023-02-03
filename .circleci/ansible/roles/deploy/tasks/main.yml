@@ -7,7 +7,7 @@
 - name: "Unarchive backend files"
   unarchive:
     src: artifact.tar.gz
-    dest: ~/web"
+    dest: ~/web
 
 - name: Executing node
   shell: |
