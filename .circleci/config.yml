@@ -205,12 +205,11 @@ jobs:
     steps:
       - checkout
       - install-aws-cli
-      - restore_cache:
-          keys: [backend-build]
       - run:
           name: Run migrations
           command: |
             cd backend
+            npm cache clean --force
             npm install
             npm audit fix --force
             npm audit fix --audit-level=critical --force
