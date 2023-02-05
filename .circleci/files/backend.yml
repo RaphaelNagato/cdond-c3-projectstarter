@@ -39,6 +39,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub backend-${ID}
+        - Key: Project
+          Value: Udapeople
 
   EC2ElasticIp:
     Type: AWS::EC2::EIP
