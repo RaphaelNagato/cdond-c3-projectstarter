@@ -3,3 +3,5 @@ http://udapeople-d334760.s3-website-us-east-1.amazonaws.com [URL02]
 https://d165tuji7kpcqr.cloudfront.net [URL03]
 http://54.172.208.28:3030/api/status [URL04]
 http://ec2-3-94-181-103.compute-1.amazonaws.com:9090/targets [URL05]
+
+https://asset.cloudinary.com/raphaelnagato/78505efab8428f5cf685bd58c3d32165 (Link to Video)
