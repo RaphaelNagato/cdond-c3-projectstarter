@@ -370,7 +370,7 @@ jobs:
       - image: cimg/base:stable
     steps:
       - checkout
-      - install aws-cli
+      - install-aws-cli
       - run:
           name: Remove old stacks and files
           command: |
